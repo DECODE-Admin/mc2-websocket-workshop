@@ -6,7 +6,7 @@ const Polls = () => {
   const [pollListState, setPollListState] = useState([]);
 
   useEffect(() => {
-    fetch('http://192.168.9.203:3001/api/poll')
+    fetch('http://localhost:3001/api/poll')
       .then(response => response.json())
       .then(data => setPollListState(data))
       .catch(err => console.log(err));

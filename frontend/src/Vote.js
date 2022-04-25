@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { io } from "socket.io-client";
 
 const Vote = () => {
     const { id } = useParams();
@@ -8,24 +9,32 @@ const Vote = () => {
     const [voteAnswersState, setVoteAnswesState] = useState([]);
 
     useEffect(() => {
-        fetch(`http://192.168.9.203:3001/api/poll/${id}`)
+        fetch(`http://localhost:3001/api/poll/${id}`)
             .then(response => response.json())
             .then(data => {
                 setVoteTitleState(data.poll.name);
                 setVoteAnswesState(data.answers);
             })
             .catch(err => console.log(err))
+
+        const socket = io(`http://localhost:3001/?poll_id=${id}`);
+        socket.on("vote", message => {
+            setVoteAnswesState([...message.answers])
+        })
+        return () => {
+            socket.close()
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const vote = (answer_id) => {
-        fetch(`http://192.168.9.203:3001/api/poll/${id}/${answer_id}`, {
+        fetch(`http://localhost:3001/api/poll/${id}/${answer_id}`, {
             method: 'POST'
         })
             .then(response => response.json())
             .then(data => {
-                console.log(data)
-                setVoteAnswesState(data.answers);
+                //console.log(data)
+                //setVoteAnswesState(data.answers);
             })
             .catch(err => console.log(err));
     }

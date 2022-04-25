@@ -1,10 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const { createServer } = require("http");
+const { Server } = require("socket.io");
 
 const app = express();
 app.use(express.json());
-const whitelist = ["http://localhost", "http://localhost:3000", "http://192.168.9.203", "http://localhost:3000"]
+const whitelist = ["http://localhost", "http://localhost:3000", "http://192.168.9.203:3000", "http://localhost:3000"]
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin || whitelist.indexOf(origin) !== -1) {
@@ -17,6 +18,12 @@ const corsOptions = {
 }
 app.use(cors(corsOptions))
 const httpServer = createServer(app);
+const io = new Server(httpServer, {
+    cors: {
+        origin: "*"
+    }
+});
+
 
 const db = require("./database/database");
 const { randomUUID } = require("crypto");
@@ -93,7 +100,13 @@ const voteUpdated = (poll_id, res) => {
                 return;
             }
             const answers_res = rows;
-            return res.json({
+
+            io.to(poll_id).emit("vote", {
+                poll: poll_res,
+                answers: answers_res
+            })
+
+            res.json({
                 poll: poll_res,
                 answers: answers_res
             })
@@ -109,6 +122,17 @@ app.post("/api/poll/:poll_id/:answer_id", (req, res) => {
     
     voteUpdated(req.params.poll_id, res);
 });
+
+
+io.on("connection", (socket) => {
+    socket.emit("hello", "world");
+    if (socket.handshake.query.poll_id) {
+        socket.join(socket.handshake.query.poll_id);
+    }
+});
+
+
+
 
 
 httpServer.listen(3001, () => console.log("Server is listening to port 3001"));
