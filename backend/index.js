@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const { createServer } = require("http");
-const { Server } = require("socket.io");
+
 
 const app = express();
 app.use(express.json());
@@ -17,16 +17,17 @@ const corsOptions = {
   credentials: true,
 }
 app.use(cors(corsOptions))
-
 const httpServer = createServer(app);
-const io = new Server(httpServer, {
-    cors: {
-        origin: '*'
-    }
-});
 
 const db = require("./database/database");
 const { randomUUID } = require("crypto");
+
+
+app.get("/api/reset", (req, res) => {
+    const sql = "UPDATE answer SET votes = 0";
+    db.run(sql);
+    res.send("ok");
+})
 
 
 app.get("/api/poll", (req, res) => {
@@ -80,7 +81,7 @@ app.get("/api/poll/:poll_id", (req, res) => {
     });
 });
 
-const voteUpdated = (poll_id) => {
+const voteUpdated = (poll_id, res) => {
     db.get("SELECT id, name FROM poll WHERE id = ?", [poll_id], (err, row) => {
         if (err) {
             res.status(400).json({ "error": err.message });
@@ -93,7 +94,10 @@ const voteUpdated = (poll_id) => {
                 return;
             }
             const answers_res = rows;
-                io.in(poll_id).emit("voted", {poll: poll_res, answers: answers_res});
+            return res.json({
+                poll: poll_res,
+                answers: answers_res
+            })
         });
     });
 
@@ -104,18 +108,8 @@ app.post("/api/poll/:poll_id/:answer_id", (req, res) => {
     const sql = "UPDATE answer SET votes = votes + 1 WHERE id = ?";
     db.run(sql, [req.params.answer_id]);
     
-    voteUpdated(req.params.poll_id);
-    res.send("ok");
+    voteUpdated(req.params.poll_id, res);
 });
-
-
-io.on("connection", socket => {
-    if (socket.handshake.query.poll_id) {
-        socket.join(socket.handshake.query.poll_id);
-        socket.emit("welcome", "Have a seat!");
-    }
-});
-
 
 
 httpServer.listen(3001, () => console.log("Server is listening to port 3001"));
